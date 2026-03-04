@@ -1,47 +1,45 @@
 /*:
- * @plugindesc 3D图片查看器插件
+ * @plugindesc CSS3DViewer
  * @author Aaron Gao & Donovan Yuan
  *
  * @param ScaleRatio
- * @text 图片缩放比例
- * @desc 图片占据屏幕的最大宽高比例，例如 0.8 代表占据屏幕 80% 的大小。
+ * @text Picture Scaling
+ * @desc The maximum aspect ratio of the image on the screen, for example, 0.8 indicates that it occupies 80% of the screen size.
  * @default 0.8
  * @type number
  * @decimals 2
  * @min 0.1
  * @max 1.0
  * * @param BackgroundOpacity
- * @text 背景遮罩透明度
- * @desc 背景黑色遮罩的透明度，0.0 为全透明，1.0 为纯黑。
+ * @text Background mask transparency
+ * @desc Background mask transparency，0.0 is fully transparent，1.0 is pure black.
  * @default 0.7
  * @type number
  * @decimals 1
  * @min 0.0
  * @max 1.0
  *
- * @help 用法：
- * 1. 将图片放入项目的 img/pictures/ 文件夹中
+ * @help Usage：
+ *  1. Put image in `img/pictures/` fold
  *
- * 2. 在事件中使用插件命令：
- *  打开查看器：Open3DViewer 图片文件名
- * （例如：Open3DViewer Card01  或者  Open3DViewer Card01.png）
+ *  2. Use plugin order in events：Open3DViewer image_name
+ * （For example：Open3DViewer Card01  or  Open3DViewer Card01.png）
  *
- * 注意：
- *  当3D查看器打开时，事件将会停止推进，直到查看器关闭。
- *  插件会自动尝试寻找 .png, .jpg, .jpeg, .gif, .webp 格式的图片，
- *  你不再需要强制写明后缀名。
+ * Attention：
+ *  When 3D Viewer open, the event will stop until close viewer
+ *  Plugin will find the image in .png, .jpg, .jpeg, .gif, .webp format automatically, so you don't need to label the suffix in plugin order.
  */
 
 (function() {
-    // 获取插件参数 (请确保你的插件文件名为 CSS3DViewer.js)
+
     const parameters = PluginManager.parameters('CSS3DViewer');
     const scaleRatio = Number(parameters['ScaleRatio'] || 0.8);
     const bgOpacity = Number(parameters['BackgroundOpacity'] || 0.7);
 
     let currentViewer = null;
 
-    // --- Game_Temp ---
-    // 增加一个状态标识
+    
+
     Game_Temp.prototype._css3dViewerOpen = false;
 
     Game_Temp.prototype.isCSS3DViewerOpen = function() {
@@ -51,7 +49,7 @@
     Game_Temp.prototype.openCSS3DViewer = function(imagePath) {
         if (currentViewer) currentViewer.close();
         currentViewer = new CSS3DViewer(imagePath);
-        this._css3dViewerOpen = true; // 设置打开标志
+        this._css3dViewerOpen = true; 
     };
 
     Game_Temp.prototype.closeCSS3DViewer = function() {
@@ -59,45 +57,41 @@
             currentViewer.close();
             currentViewer = null;
         }
-        this._css3dViewerOpen = false; // 清除打开标志
+        this._css3dViewerOpen = false; 
     };
 
 
-    // --- Game_Interpreter ---
-    // 拦截插件命令
     const _Game_Interpreter_pluginCommand = Game_Interpreter.prototype.pluginCommand;
     Game_Interpreter.prototype.pluginCommand = function(command, args) {
         _Game_Interpreter_pluginCommand.call(this, command, args);
         if (command === 'Open3DViewer') {
             $gameTemp.openCSS3DViewer(args[0]);
-            this.setWaitMode('css3dViewer'); // 设置等待模式，让解释器暂停
+            this.setWaitMode('css3dViewer'); 
         } 
     };
 
-    // 修改 updateWait 拦截等待模式
     const _Game_Interpreter_updateWait = Game_Interpreter.prototype.updateWait;
     Game_Interpreter.prototype.updateWait = function() {
         if (this._waitMode === 'css3dViewer') {
             if ($gameTemp.isCSS3DViewerOpen()) {
-                return true; // 如果查看器开着，则返回 true，表示继续等待
+                return true; 
             } else {
-                this._waitMode = ''; // 查看器关闭，清除等待模式
-                return false; // 返回 false，恢复执行
+                this._waitMode = ''; 
+                return false; 
             }
         }
         return _Game_Interpreter_updateWait.call(this);
     };
 
 
-    // --- 3D查看器核心类 ---
+    // The core of 3D Viewer
     class CSS3DViewer {
         constructor(imagePath) {
             this.imagePathBase = imagePath;
-            // 常见的图片后缀，用于自动检测
             this.extensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
             this.currentExtIndex = 0;
 
-            // --- 容器 ---
+            // Container
             this.container = document.createElement('div');
             this.container.id = 'css3d-viewer-container';
             this.container.style.cssText = `
@@ -113,7 +107,7 @@
                 transition: opacity 0.3s ease;
             `;
             
-            // --- 图片 ---
+            // Pictures
             this.imageElement = new Image(); 
             this.imageElement.draggable = false;
             
@@ -128,7 +122,7 @@
                 -webkit-user-drag: none;
             `;
             
-            // --- 关闭按钮 ---
+            // Close Button
             this.closeButton = this.createButton('×', '#ff0000', 20);
             this.closeButton.addEventListener('click', () => {
                 $gameTemp.closeCSS3DViewer();
@@ -143,7 +137,7 @@
                 e.stopPropagation();
             });
 
-            // 图片加载成功后的处理
+            // After load image success 
             this.imageElement.onload = () => {
                 this.resizeImage();
                 setTimeout(() => {
@@ -152,14 +146,12 @@
                 }, 10);
             };
 
-            // 图片加载失败时的处理（自动尝试下一个后缀）
             this.imageElement.onerror = () => {
-                // 如果用户本身就带了后缀名，则直接报错并关闭
                 if (this.imagePathBase.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
                     console.error(`无法加载图片: ${this.imagePathBase} (请检查 img/pictures 文件夹)`);
                     $gameTemp.closeCSS3DViewer();
                 } else {
-                    // 如果用户没带后缀，尝试下一个后缀名
+                    
                     this.currentExtIndex++;
                     this.tryLoadImage();
                 }
@@ -167,22 +159,18 @@
             
             this.setupMouseControl();
 
-            // 开始加载图片
+            // Begin to load Image
             this.tryLoadImage();
         }
 
-        // 尝试加载图片的逻辑
         tryLoadImage() {
             if (this.imagePathBase.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
-                // 如果参数本身包含了后缀名，直接加载
                 this.imageElement.src = 'img/pictures/' + this.imagePathBase;
             } else {
-                // 遍历尝试后缀名
                 if (this.currentExtIndex < this.extensions.length) {
                     const ext = this.extensions[this.currentExtIndex];
                     this.imageElement.src = 'img/pictures/' + this.imagePathBase + ext;
                 } else {
-                    // 所有后缀都尝试完了还是失败
                     console.error(`无法找到图片: ${this.imagePathBase} (尝试了 png, jpg, webp 等格式均失败)`);
                     $gameTemp.closeCSS3DViewer();
                 }
@@ -228,7 +216,6 @@
             const imgHeight = this.imageElement.naturalHeight;
             const imgAspectRatio = imgWidth / imgHeight;
 
-            // 这里使用了插件参数 scaleRatio 代替原本写死的 0.8
             const maxAreaWidth = window.innerWidth * scaleRatio;
             const maxAreaHeight = window.innerHeight * scaleRatio;
             const maxAreaAspectRatio = maxAreaWidth / maxAreaHeight;
